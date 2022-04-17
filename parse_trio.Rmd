@@ -1,0 +1,39 @@
+---
+title: "parse_csv"
+author: "Jiaxu Li"
+date: "4/8/2022"
+output: pdf_document
+---
+
+```{r}
+setwd("~/Desktop/DSI/parse_trio")
+gn_dat = read.csv('GN.csv')
+gn_dat$Hom.Case
+
+sample_dic = data.frame(Mother="GHART1506", Father = "GHART1542a", Child = "GHART291b",stringsAsFactors = FALSE)
+
+N = nrow(gn_dat); N
+ids = unique(gn_dat$Variant.ID); ids[7]
+gn_dat[gn_dat$Variant.ID==ids[4],] 
+
+gn_child = gn_dat[gn_dat$Sample.Name==sample_dic$Child,]
+gn_mother = gn_dat[gn_dat$Sample.Name==sample_dic$Mother,]
+gn_father = gn_dat[gn_dat$Sample.Name==sample_dic$Father,]
+
+phasing = rep(0, nrow(gn_child))
+phasing = sapply(gn_child$Variant.ID, function(id_child) {
+  out = ''
+  if (id_child %in% gn_father$Variant.ID) out = paste0(out, 1)
+  else out = paste0(out, 0)
+  out = paste0(out, '/')
+  if (id_child %in% gn_mother$Variant.ID) out = paste0(out, 1)
+  else out = paste0(out, 0)
+})
+
+gn_child = cbind(phasing, gn_child)
+
+
+```
+
+
+
