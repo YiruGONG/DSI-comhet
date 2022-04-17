@@ -5,10 +5,10 @@ library(tidyverse)
 
 data = read.csv('2022-03-28_16-11-18_MCD289_genotypes.csv')
 
-idx = which(colnames(data) %in% c("AA", "AC", "AF", "AFR_AF", "AMR_AF", "AN", "DP", 
-                            "EAS_AF", "EUR_AF", "HRun", "NS", "SAS_AF", "VT", "EFF"))
-## How to integrate the columns
-data[243:244,idx]
+# idx = which(colnames(data) %in% c("AA", "AC", "AF", "AFR_AF", "AMR_AF", "AN", "DP", 
+#                             "EAS_AF", "EUR_AF", "HRun", "NS", "SAS_AF", "VT", "EFF"))
+# ## How to integrate the columns
+# data[243:244,idx]
 
 ## integrate phasing
 data = data[which(data$Covered.Case==3),]
@@ -43,6 +43,7 @@ vcf = cbind(info,child) %>%
 vcf[is.na(vcf$ID),]$ID = '.'
 
 view = select(vcf, GT, GHART291b)
+unique(view)
 
 write.table(vcf,"chr22.vcf",sep = '\t',quote = F,row.names = F)
 
