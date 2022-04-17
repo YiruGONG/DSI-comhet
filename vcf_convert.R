@@ -22,7 +22,7 @@ trio = data %>%
     values_from = value
   ) %>% 
   filter(GHART291b==1) %>% 
-  mutate(GHART291b=paste(GHART1506,GHART1542a,sep="|") )
+  mutate(GHART291b=paste(GHART1542a,GHART1506,sep="|") )
 rownames(trio) = trio$Variant.ID
 
 child = data[which(data$Sample.Name=="GHART291b"),]

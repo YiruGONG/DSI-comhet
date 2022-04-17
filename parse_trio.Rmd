@@ -6,9 +6,11 @@ output: pdf_document
 ---
 
 ```{r}
-setwd("~/Desktop/DSI/parse_trio")
-gn_dat = read.csv('GN.csv')
+# setwd("~/Desktop/DSI/parse_trio")
+gn_dat = read.csv('2022-03-28_16-11-18_MCD289_genotypes.csv')
 gn_dat$Hom.Case
+
+gn_dat = gn_dat[which(gn_dat$Covered.Case==3),]
 
 sample_dic = data.frame(Mother="GHART1506", Father = "GHART1542a", Child = "GHART291b",stringsAsFactors = FALSE)
 
