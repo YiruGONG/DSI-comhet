@@ -57,12 +57,13 @@ write.csv(child,"child_chr22.csv",row.names = F,na="")
 
 ###### identify CH ########
 CH = child %>% 
-  filter(child$GT=="het", 
-         child$GHART291b %in% c("1|0","0|1")) %>% 
+  filter(Covered.Case==3) %>% 
+  filter(GT=="het", 
+         GHART291b %in% c("1|0","0|1")) %>% 
   # separate(GHART291b,into = c('mother','father'),sep = '\\|') %>% 
-  mutate( gene = strsplit(All.Gene.Symbols,"\\|") ) %>% 
+  mutate( gene = strsplit(UpToDate.Gene.Name,"\\|") ) %>% 
   unnest(gene) %>% 
-  relocate(gene, .before = All.Gene.Symbols) %>% 
+  relocate(gene, .before = UpToDate.Gene.Name) %>% 
   group_by(gene) %>% 
   summarise(mother_sum = sum(as.numeric(mother)),
             father_sum = sum(as.numeric(father)) ) %>% 
