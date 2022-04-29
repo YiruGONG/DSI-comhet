@@ -14,4 +14,4 @@ df2 <- df %>%
                           mother_in_variant == TRUE & father_in_variant == FALSE ~ "1/0",
                           mother_in_variant == FALSE & father_in_variant == TRUE ~ "0/1",
                           mother_in_variant == TRUE & father_in_variant == TRUE ~ "1/1")) %>%
-  filter(genotype == "1/1")
+  filter(genotype %in% c("1/0","0/1"))
