@@ -1,5 +1,7 @@
 library(tidyverse)
 
+startTime <- Sys.time()
+
 data = read.csv("chr22_RHD_335trios.csv")
 
 child = "1"
@@ -14,6 +16,9 @@ GT_mother = paste0('GT_',mother)
 GT_father = paste0('GT_',father)
 
 data = data %>%
+  ###Step 0: select the first gene name from SYMBOL
+  mutate(gene=sapply(strsplit(!!as.symbol(gene_col),","),function(x) x[1])) %>% 
+  relocate(gene, .before = !!as.symbol(gene_col)) %>% 
   ###Step 1: filter coverage=3
   # filter(DP_1>dp_cut, DP_2>dp_cut, DP_3>dp_cut) %>%
   filter(if_all(.cols = all_of(dp_col),
@@ -24,22 +29,15 @@ data = data %>%
 ###Step 3: obtain results in each trio
 # switch to parallel calculation if needed
 # EG. sample = 'BS_1F9EFPM7'
-output = NULL
-for ( sample in unique(data[[paste0("SAMPLE_",child)]]) ){
-  subset = data %>% filter(!!as.symbol(paste0('SAMPLE_',child)) ==sample)
-  out = CH_identifier(subset)
-  output = rbind(output,out)
-}
 
-write.csv(output,'chr22_355_flagged.csv',row.names = F)
-
-
+#### Main function
 CH_identifier = function(subset){
+  # subset = subset %>%
+  #   mutate( gene = strsplit(!!as.symbol(gene_col),",") ) %>%
+  #   unnest(gene) %>%
+  #   relocate(gene, .before = !!as.symbol(gene_col))
+  
   ###Step 3: filter gene with >1 variants in child
-  subset = subset %>% 
-    mutate( gene = strsplit(!!as.symbol(gene_col),",") ) %>% 
-    unnest(gene) %>% 
-    relocate(gene, .before = !!as.symbol(gene_col))
   gene_idx = subset %>% 
     group_by(gene) %>% 
     count() %>% 
@@ -67,7 +65,7 @@ CH_identifier = function(subset){
            mother_n = replace(mother_n,mother!='ref',1),
            father_n = replace(father_n,father!='ref',1),
            parent_var_sum = mother_n+father_n
-           ) %>% 
+    ) %>% 
     relocate(phasing,mut_flag,.before = !!as.symbol(paste0('PGT_',child))) %>% 
     mutate(mut_flag=replace(mut_flag,parent_var_sum==0,'denovo'),
            mut_flag=replace(mut_flag,!!as.symbol(GT_child)=="'1/1'",'hom'),
@@ -102,21 +100,53 @@ CH_identifier = function(subset){
     filter(haplo!='0')
   
   ch = NULL
+  pot_ch = NULL
   for (gene in unique(CH$gene)){
-    tmp = filter(CH,gene==gene)
-    if (nrow(tmp)==2){ ### when one het phased and one het unknown phasing --> CH
-      ch = c(ch,gene)
+    tmp = CH[which(CH$gene==gene),]
+    if (nrow(tmp)==2){ ### when one het phased and one het unknown phasing --> potential CH
+      pot_ch = c(pot_ch,gene)
     } else if (tmp$haplo=="1"){ ### all successfully phased with var on both allele
       if (tmp$father_n >0 & tmp$mother_n >0) ch=c(ch,gene)
     } ### both het are unknown phased --> same
   }
-  CH = CH %>% filter(gene %in% ch)
-  two_var = two_var %>% mutate(mut_flag=replace(mut_flag,gene %in% ch, 'CH'))
+  # CH = CH %>% filter(gene %in% ch)
+  two_var = two_var %>% mutate(mut_flag=replace(mut_flag,gene %in% ch, 'CH'),
+                               mut_flag=replace(mut_flag,gene %in% pot_ch, 'potential CH'))
   
   return(two_var)
 }
 
-#questions:
-# 1. why is some GT '1/0' while most are '0/1'
-# 2. how should we consider the reference allele (switch?)
-  
+### The actual execution
+output = NULL
+for ( sample in unique(data[[paste0("SAMPLE_",child)]]) ){
+  subset = data %>% filter(!!as.symbol(paste0('SAMPLE_',child)) ==sample)
+  out = CH_identifier(subset)
+  output = rbind(output,out)
+}
+
+write.csv(output,'chr22_335_flagged.csv',row.names = F)
+endTime <- Sys.time()
+print(endTime - startTime)
+### 26.7 secs for chr22, 335 trios
+
+
+#################### Phase 2: add another comparative output file
+var_info = c("VAR","GT_1","GT_2","GT_3") ##add the desired column info here
+
+output = read.csv('chr22_335_flagged.csv')
+ch = output %>% 
+  filter(mut_flag %in% c("CH","potential CH")) %>% 
+  select(SAMPLE_1,gene,mut_flag,VAR,starts_with('GT_'),phasing) %>% 
+  nest(info=all_of(var_info)) %>% #c(VAR,starts_with('GT_'))
+  group_by(SAMPLE_1,gene,mut_flag) %>% 
+  pivot_wider(
+    names_from = phasing,
+    values_from = info
+  ) %>% 
+  rename(mother=`1|0`,father=`0|1`,unknown=`.|.`) %>% 
+  unnest(c(mother, father, unknown),names_sep = '_')
+
+write.csv(ch,"comparative_335.csv",row.names = F, na="")
+
+# tag: category: CH, potential CH
+
