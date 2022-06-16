@@ -11,4 +11,5 @@ docker push yirugong/ch_script:v1
 docker run -it --rm -v <absolute data directory>:/data yirugong/ch_script:v1
 ```
 eg. ~/data2:/data
+
 4. Obtain the output files in the same data directory
