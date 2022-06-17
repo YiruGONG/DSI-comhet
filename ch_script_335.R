@@ -2,7 +2,7 @@ library(tidyverse)
 
 startTime <- Sys.time()
 
-data = read.csv("chr_20.csv")
+data = read.csv("chr_Y.csv")
 
 child = "1"
 mother = "2"
@@ -124,7 +124,7 @@ for ( sample in unique(data[[paste0("SAMPLE_",child)]]) ){
   output = rbind(output,out)
 }
 
-write.csv(output,'chr20_flagged.csv',row.names = F)
+write.csv(output,'chrY_flagged.csv',row.names = F)
 endTime <- Sys.time()
 print(endTime - startTime)
 ### 26.7 secs for chr22, 335 trios
@@ -133,7 +133,11 @@ print(endTime - startTime)
 #################### Phase 2: add another comparative output file
 var_info = c("VAR","GT_1","GT_2","GT_3") ##add the desired column info here
 
-# output = read.csv('chr20_flagged.csv')
+# output = read.csv('chrY_flagged.csv')
+if (nrow(output) == 0) {
+  stop("(actually not error):\n No comparable results from the output file! Script ends.")
+}
+
 ch = output %>% 
   filter(mut_flag %in% c("CH","potential CH")) %>% 
   ##### how to deal with the homo variant in CH gene?
@@ -154,7 +158,7 @@ ch2 = by(ch,ch[,c("SAMPLE_1","gene","mut_flag")],function(x){
     tibble(x[,c("SAMPLE_1","gene","mut_flag")], .)
   return(tmp)
 }) %>% 
-  do.call(rbind,.) %>% 
+  do.call(rbind,.) %>%
   unique()
 
 ch3 = tibble(ch2, res=pmap(ch2[c('info1','info2')],crossing)) %>% 
