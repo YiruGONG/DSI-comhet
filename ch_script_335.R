@@ -133,41 +133,46 @@ print(endTime - startTime)
 #################### Phase 2: add another comparative output file
 var_info = c("VAR","GT_1","GT_2","GT_3") ##add the desired column info here
 
-# output = read.csv('chrY_flagged.csv')
-if (nrow(output) == 0) {
-  stop("(actually not error):\n No comparable results from the output file! Script ends.")
-}
-
+# output = read.csv('chr20_flagged.csv')
 ch = output %>% 
   filter(mut_flag %in% c("CH","potential CH")) %>% 
   ##### how to deal with the homo variant in CH gene?
   ##### How to deal with CH with all 1|0, 0|1, .|. ? Are they still CH or potential CH?
-  filter(phasing != "1|1") %>% 
-  select(SAMPLE_1,gene,mut_flag,VAR,starts_with('GT_'),phasing) %>% 
-  nest(info=all_of(var_info)) %>%  #c(VAR,starts_with('GT_'))
-  mutate(phasing=recode(phasing,`1|0`="mother",`0|1`="father",`.|.`="unknown"))
+  filter(phasing != "1|1")
+
+if (nrow(ch) == 0) {
+  info1 = data.frame(matrix(ncol = length(var_info), nrow = 0))
+  colnames(info1) = var_info
+  info2 = info1
+  ch2 = tibble(SAMPLE_1="",gene="",mut_flag="",source1="",info1=list(info1),source2="",info2=list(info2)) %>% 
+    unnest(c(info1,info2),names_sep = ".")
+} else {
+  ch = ch %>% 
+    select(SAMPLE_1,gene,mut_flag,VAR,starts_with('GT_'),phasing) %>% 
+    nest(info=all_of(var_info)) %>%  #c(VAR,starts_with('GT_'))
+    mutate(phasing=recode(phasing,`1|0`="mother",`0|1`="father",`.|.`="unknown")) %>% 
+    nest(all=c(phasing,info)) %>% 
+    mutate(
+      new = map(all,function(x){
+        expand_grid(setNames(x,c('source1','info1')),
+                    setNames(x,c('source2','info2'))) %>% 
+          filter(source1 != source2) %>% 
+          rowwise() %>%
+          mutate(id = paste0(sort(c(source1, source2)), collapse = " ")) %>%
+          distinct(id, .keep_all = TRUE) %>%
+          select(-id)
+      })) %>% 
+    select(-all) %>% 
+    unnest(new)
   
-ch2 = by(ch,ch[,c("SAMPLE_1","gene","mut_flag")],function(x){
-  tmp = expand_grid(setNames(x[,c('phasing','info')],c('source1','info1')),
-                    setNames(x[,c('phasing','info')],c('source2','info2'))) %>% 
-    filter(source1 != source2) %>% 
-    rowwise() %>%
-    mutate(id = paste0(sort(c(source1, source2)), collapse = " ")) %>%
-    distinct(id, .keep_all = TRUE) %>%
-    select(-id) %>% 
-    tibble(x[,c("SAMPLE_1","gene","mut_flag")], .)
-  return(tmp)
-}) %>% 
-  do.call(rbind,.) %>%
-  unique()
+  ch2 = tibble(ch, res=pmap(ch[c('info1','info2')],crossing)) %>% 
+    # mutate(res = map(res,function(x) unnest(x,names_sep = '_')) ) %>% 
+    select(-info1,-info2) %>%
+    unnest(res) %>% 
+    relocate(source2, .before = info2)
+}
 
-ch3 = tibble(ch2, res=pmap(ch2[c('info1','info2')],crossing)) %>% 
-  # mutate(res = map(res,function(x) unnest(x,names_sep = '_')) ) %>% 
-  select(-info1,-info2) %>%
-  unnest(res) %>% 
-  relocate(source2, .before = info2)
-
-write.csv(ch3,"comparative_chr20.csv",row.names = F, na="")
+write.csv(ch2,"comparative_chrY.csv",row.names = F, na="")
 
 # tag: category: CH, potential CH
 
